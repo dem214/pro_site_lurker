@@ -103,9 +103,16 @@ class WorkingThread(Thread):
         proxy = getproxy(proxy_list)
         while True:
             log.info(f"Try {url}, through proxy {proxy}")
+            #add headers to http request (to bypass 403 Forbidden)
+            hdr = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.64 Safari/537.11',
+       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+       'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.3',
+       'Accept-Encoding': 'none',
+       'Accept-Language': 'en-US,en;q=0.8',
+       'Connection': 'keep-alive'}
             try:
                 #creating url request
-                r = req.Request(url)
+                r = req.Request(url, headers=hdr)
                 if proxy is not None:
                     #adds proxy to the request if exist
                     if 'http://' in url:
@@ -322,7 +329,7 @@ def main():
     #writing all invalid links to the file
     with open(path_to_invalid_links, 'w') as ivl:
         ivl.writelines(invalid_links)
-        log.info(f"Wrote {len(invalid_links)} invalid urls to '{path_to_valid_links}'")
+        log.info(f"Wrote {len(invalid_links)} invalid urls to '{path_to_invalid_links}'")
 
     #writing bad links to the file if that exist
     if len(bad_links) > 0:
