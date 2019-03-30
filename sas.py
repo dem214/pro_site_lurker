@@ -13,7 +13,8 @@ log.setLevel(logging.DEBUG)
 def gen_urls(urls):
     '''generator of urls
 
-takes array of urls from the list and return one by one in random order'''
+takes array of urls from the list and return one by one in 
+random order'''
     while len(urls) > 0:
         #yielding random url form list
         urln = random.randint(0, len(urls)-1)
@@ -38,8 +39,10 @@ def unanchor(link: str):
         return link
     else:
         if url is not None:
+            log.info(f"Unanchoring that baby {link}, got this {url}")
             return url
         else:
+            log.error(f"Cannot unanchor {link}, return this as is")
             return link
 
 
@@ -80,13 +83,19 @@ class WorkingThread(Thread):
                 iconic = self.is_consist(url)
                 if iconic is None:
                     #if none - probably, site not reached - bad link
+                    with bad_lock:
+                        log.error(f"{url} - bad link, because cannot \
+reached thru given proxies")
+                        bad_links.append(link)
                     continue
                 if iconic:
                     #there are key word - valid
+                    log.info(f"@ {url} match word '{word}' - VALID")
                     with valid_lock:
                         valid_links.append(link + '\n')
                 else:
                     #there are no key words - invalid link
+                    log.info(f"@ {url} - no matches - INVALID")
                     with invalid_lock:
                         invalid_links.append(link + '\n')
 
@@ -104,12 +113,15 @@ class WorkingThread(Thread):
         while True:
             log.info(f"Try {url}, through proxy {proxy}")
             #add headers to http request (to bypass 403 Forbidden)
-            hdr = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.64 Safari/537.11',
-       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-       'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.3',
-       'Accept-Encoding': 'none',
-       'Accept-Language': 'en-US,en;q=0.8',
-       'Connection': 'keep-alive'}
+            hdr = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) \
+AppleWebKit/537.11 (KHTML, like Gecko) \
+Chrome/23.0.1271.64 Safari/537.11',
+                'Accept': 'text/html,application/xhtml+xml,\
+application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.3',
+                'Accept-Encoding': 'none',
+                'Accept-Language': 'en-US,en;q=0.8',
+                'Connection': 'keep-alive'}
             try:
                 #creating url request
                 r = req.Request(url, headers=hdr)
@@ -120,18 +132,17 @@ class WorkingThread(Thread):
                     else:                    
                         r.set_proxy(proxy, "http")
                         r.set_proxy(proxy, "https")
-                log.info(f"Request: {r.full_url}, has proxy: {r.has_proxy()}")
+                log.info(f"Request: {r.full_url},\
+has proxy: {r.has_proxy()}")
                 with req.urlopen(r) as response:
                     #fetching code from url
                     code = response.read()\
-                    .decode(encoding='utf-8', errors='ignore')
+                        .decode(encoding='utf-8', errors='ignore')
                     log.info(f"Got data form {url}")
                     #cheks code for words
                     for word in self.word_list:
                         if word in code:
-                            log.info(f"@ {url} match word '{word}' - VALID")
                             return True
-                    log.info(f"@ {url} - no matches - INVALID")
                     return False
             except Exception as e:
                 #if connection error (for example, bad proxy)
@@ -142,17 +153,16 @@ class WorkingThread(Thread):
                 while proxy in proxy_list:
                     proxy_list.remove(proxy)
                 if len(proxy_list) > 0:
-                    #if there are another proxy in the list - choose random and
-                    #another try
+                    #if there are another proxy in the list - 
+                    #choose random and another try
                     proxy = getproxy(proxy_list)
                     log.info(f"Match new proxy {proxy}")
                     continue
                 else:
-                    #there are no valid proxy in the list - site is cannot reached
-                    log.error(f"No more proxies. {url} - bad link")
-                    with bad_lock:
-                        bad_links.append(url)
-                    break
+                    #there are no valid proxy in the list - 
+                    #site is cannot reached
+                    log.error(f"No more proxies. {url}")
+                    return None
 
 
 def main():
@@ -170,21 +180,31 @@ def main():
                           version='%prog v1.0')
     #add option of choising config file
     parser.add_option("-c", "--config",
-                      action='store', type='string',
-                      dest='config_path', default='config.txt', metavar='FILE',
+                      action='store', 
+                      type='string',
+                      dest='config_path', 
+                      default='config.txt', 
+                      metavar='FILE',
                       help='path to config file [default: %default]')
     #add option for verbose output
     parser.add_option("-v", "--verbose",
-                      action='store_true', dest='verbose', default = False,
+                      action='store_true', 
+                      dest='verbose', 
+                      default = False,
                       help='verbosing all logs to stdout')
     #add option for withoit output
     parser.add_option("-q", "--quiet",
-                      action='store_true', dest='quiet', default = False,
+                      action='store_true', 
+                      dest='quiet', 
+                      default = False,
                       help="don't print messages to stdout")
     #option to save logs to file
     parser.add_option('-l', '--log',
-                      action='store', type='string', dest='log_path',
-                      default = None, metavar='FILE',
+                      action='store', 
+                      type='string', 
+                      dest='log_path',
+                      default = None, 
+                      metavar='FILE',
                       help='save all logs to FILE' )
     (options, args) = parser.parse_args()
     config_path = options.config_path
@@ -246,7 +266,8 @@ def main():
     log.info(f"max_thread_count = '{str(max_thread_count)}'")
     path_to_valid_links = config.get('DEFAULT','path_to_valid_links')
     log.info(f"path_to_valid_links = '{path_to_valid_links}'")
-    path_to_invalid_links = config.get('DEFAULT','path_to_invalid_links')
+    path_to_invalid_links = \
+        config.get('DEFAULT','path_to_invalid_links')
     log.info(f"path_to_invalid_links = '{path_to_invalid_links}'")
 
     #fetching urls from list
@@ -256,7 +277,8 @@ def main():
             log.info(f"Got urls from {site_list_file_path}\
 - {len(urls)} entries")
     except Exception as e:
-        log.critical('Cannot read file (list of sites) ' + site_list_file_path)
+        log.critical('Cannot read file (list of sites) ' + 
+            site_list_file_path)
         log.exception(e)
         exit()
     else:
@@ -268,9 +290,11 @@ def main():
         wordfile = open(words_list_file_path, 'r')
         word_list = wordfile.readlines()
         word_list = list(map(lambda x: x.strip(), word_list))
-        log.info(f"Got words from '{words_list_file_path}' - {len(word_list)} entries")
+        log.info(f"Got words from '{words_list_file_path}' - \
+{len(word_list)} entries")
     except Exception as e:
-        log.critical("Cannot read file with kwords '{words_list_file_path}'")
+        log.critical("Cannot read file with kwords \
+'{words_list_file_path}'")
         log.exception(e)
         exit()
     else:
@@ -281,9 +305,11 @@ def main():
         proxyfile = open(proxy_list_file_path)
         proxy_list = proxyfile.readlines()
         proxy_list = list(map(lambda x: x.strip(), proxy_list))
-        log.info(f"Got proxies from '{proxy_list_file_path}' - {len(proxy_list)} entries")
+        log.info(f"Got proxies from '{proxy_list_file_path}' - \
+{len(proxy_list)} entries")
     except Exception as e:
-        log.error(f"Cannot read from proxy file '{proxy_list_file_path}'")
+        log.error(f"Cannot read from proxy file \
+'{proxy_list_file_path}'")
         log.exception(e)
         log.error("Using Null list of proxies")
         proxy_list = None
@@ -324,12 +350,14 @@ def main():
     #writing valid links to the file
     with open(path_to_valid_links, 'w') as vl:
         vl.writelines(valid_links)
-        log.info(f"Wrote {len(valid_links)} valid urls to '{path_to_valid_links}'")
+        log.info(f"Wrote {len(valid_links)} valid urls to \
+'{path_to_valid_links}'")
 
     #writing all invalid links to the file
     with open(path_to_invalid_links, 'w') as ivl:
         ivl.writelines(invalid_links)
-        log.info(f"Wrote {len(invalid_links)} invalid urls to '{path_to_invalid_links}'")
+        log.info(f"Wrote {len(invalid_links)} invalid urls to \
+'{path_to_invalid_links}'")
 
     #writing bad links to the file if that exist
     if len(bad_links) > 0:
